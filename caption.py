@@ -2,7 +2,7 @@
 # coding: utf-8
 
 # In[1]:
-
+import os
 
 import torch
 import numpy as np
@@ -56,11 +56,11 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description="image captioning")
 
-    parser.add_argument("--image", "-i", help="Path to image")
+    parser.add_argument("--data", "-d", help="Path to image folder")
 
     args = parser.parse_args()
 
-    image_path = args.image
+    DATA_PATH = args.data
 
 
     # Register caption task
@@ -115,28 +115,40 @@ if __name__ == '__main__':
     eos_item = torch.LongTensor([task.src_dict.eos()])
     pad_idx = task.src_dict.pad()
 
-
+    image_paths = []
 
     # In[39]:
 
+    save_folder = "captioned/"
+    isExist = os.path.exists(save_folder)
+    # print(isExist)
+    if not isExist:
+        # Create a new directory because it does not exist
+        os.makedirs(save_folder)
+        # print("The new directory is created!")
 
-    image = Image.open(image_path)
+    for dirname, _, filenames in os.walk(DATA_PATH):
+        for filename in filenames:
+            raw_path = os.path.join(dirname, filename)
+            image = Image.open(raw_path)
+            raw_filename = filename.split(".")[0]
+            save_filename = raw_filename + "_cap.jpg"
 
-    # Construct input sample & preprocess for GPU if cuda available
-    sample = construct_sample(image)
-    sample = utils.move_to_cuda(sample) if use_cuda else sample
-    sample = utils.apply_to_sample(apply_half, sample) if use_fp16 else sample
+            # Construct input sample & preprocess for GPU if cuda available
+            sample = construct_sample(image)
+            sample = utils.move_to_cuda(sample) if use_cuda else sample
+            sample = utils.apply_to_sample(apply_half, sample) if use_fp16 else sample
 
-    with torch.no_grad():
-        result, scores = eval_step(task, generator, models, sample)
+            with torch.no_grad():
+                result, scores = eval_step(task, generator, models, sample)
 
-    display_image = cv2.imread(image_path)
-    cv2.putText(display_image, result[0]['caption'], (0, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.9,
-                (0, 100, 0), 2)
+            display_image = cv2.imread(raw_path)
+            cv2.putText(display_image, result[0]['caption'], (0, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.9,
+                        (0, 100, 0), 2)
 
-    filename = r"saved.jpg"
+            filename = save_folder + raw_filename + "_cap.jpg"
 
-    cv2.imwrite(filename, display_image)
+            cv2.imwrite(filename, display_image)
 
 # display(image)
 # print('Caption: {}'.format(result[0]['caption']))
